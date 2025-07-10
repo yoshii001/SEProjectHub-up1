@@ -1,0 +1,307 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* WCAG 2.1 Compliant Text Contrast Utilities */
+@layer base {
+  /* High contrast text colors for dark theme */
+  .dark {
+    --text-primary: #FFFFFF;
+    --text-secondary: #E5E7EB;
+    --text-tertiary: #D1D5DB;
+    --text-muted: #9CA3AF;
+    --text-disabled: #6B7280;
+    --text-inverse: #111827;
+    
+    /* Background colors for proper contrast */
+    --bg-primary: #111827;
+    --bg-secondary: #1F2937;
+    --bg-tertiary: #374151;
+    --bg-surface: #1F2937;
+    --bg-elevated: #374151;
+    
+    /* Interactive state colors */
+    --text-link: #60A5FA;
+    --text-link-hover: #93C5FD;
+    --text-success: #34D399;
+    --text-warning: #FBBF24;
+    --text-error: #F87171;
+  }
+  
+  /* High contrast text colors for light theme */
+  .light {
+    --text-primary: #111827;
+    --text-secondary: #374151;
+    --text-tertiary: #4B5563;
+    --text-muted: #6B7280;
+    --text-disabled: #9CA3AF;
+    --text-inverse: #FFFFFF;
+    
+    /* Background colors for proper contrast */
+    --bg-primary: #FFFFFF;
+    --bg-secondary: #F9FAFB;
+    --bg-tertiary: #F3F4F6;
+    --bg-surface: #FFFFFF;
+    --bg-elevated: #FFFFFF;
+    
+    /* Interactive state colors */
+    --text-link: #2563EB;
+    --text-link-hover: #1D4ED8;
+    --text-success: #059669;
+    --text-warning: #D97706;
+    --text-error: #DC2626;
+  }
+  
+  /* Text shadow utilities for enhanced readability */
+  .text-shadow-sm {
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+  }
+  
+  .text-shadow-md {
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.6);
+  }
+  
+  .text-shadow-lg {
+    text-shadow: 0 4px 8px rgba(0, 0, 0, 0.7);
+  }
+  
+  /* Ensure minimum contrast ratios */
+  .contrast-enhanced {
+    filter: contrast(1.2);
+  }
+  
+  /* High contrast mode support */
+  @media (prefers-contrast: high) {
+    .dark {
+      --text-primary: #FFFFFF;
+      --text-secondary: #FFFFFF;
+      --text-tertiary: #E5E7EB;
+    }
+    
+    .light {
+      --text-primary: #000000;
+      --text-secondary: #000000;
+      --text-tertiary: #1F2937;
+    }
+  }
+  
+  /* Reduced motion support */
+  @media (prefers-reduced-motion: reduce) {
+    * {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}
+
+/* Global text color classes with WCAG compliance */
+@layer utilities {
+  /* Primary text - 4.5:1 contrast ratio minimum */
+  .text-primary {
+    color: var(--text-primary);
+  }
+  
+  /* Secondary text - 4.5:1 contrast ratio minimum */
+  .text-secondary {
+    color: var(--text-secondary);
+  }
+  
+  /* Tertiary text - 3:1 contrast ratio minimum for large text */
+  .text-tertiary {
+    color: var(--text-tertiary);
+  }
+  
+  /* Muted text - 3:1 contrast ratio minimum */
+  .text-muted {
+    color: var(--text-muted);
+  }
+  
+  /* Disabled text - 3:1 contrast ratio minimum */
+  .text-disabled {
+    color: var(--text-disabled);
+  }
+  
+  /* Inverse text for contrasting backgrounds */
+  .text-inverse {
+    color: var(--text-inverse);
+  }
+  
+  /* Interactive text colors */
+  .text-link {
+    color: var(--text-link);
+  }
+  
+  .text-link:hover {
+    color: var(--text-link-hover);
+  }
+  
+  .text-success {
+    color: var(--text-success);
+  }
+  
+  .text-warning {
+    color: var(--text-warning);
+  }
+  
+  .text-error {
+    color: var(--text-error);
+  }
+  
+  /* Background utilities */
+  .bg-primary {
+    background-color: var(--bg-primary);
+  }
+  
+  .bg-secondary {
+    background-color: var(--bg-secondary);
+  }
+  
+  .bg-tertiary {
+    background-color: var(--bg-tertiary);
+  }
+  
+  .bg-surface {
+    background-color: var(--bg-surface);
+  }
+  
+  .bg-elevated {
+    background-color: var(--bg-elevated);
+  }
+  
+  /* Custom slider thumb styling for range inputs */
+  .slider-thumb::-webkit-slider-thumb {
+    appearance: none;
+    height: 20px;
+    width: 20px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #3B82F6, #8B5CF6);
+    cursor: pointer;
+    border: 2px solid #FFFFFF;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  }
+  
+  .slider-thumb::-moz-range-thumb {
+    height: 20px;
+    width: 20px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #3B82F6, #8B5CF6);
+    cursor: pointer;
+    border: 2px solid #FFFFFF;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  }
+}
+
+/* Focus indicators for accessibility */
+@layer components {
+  .focus-visible {
+    outline: 2px solid #3B82F6;
+    outline-offset: 2px;
+  }
+  
+  .focus-ring {
+    @apply focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2;
+  }
+  
+  .focus-ring-dark {
+    @apply focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-2 focus:ring-offset-gray-800;
+  }
+}
+
+/* Ensure all text elements have proper contrast */
+h1, h2, h3, h4, h5, h6 {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+p, span, div {
+  color: var(--text-secondary);
+}
+
+a {
+  color: var(--text-link);
+  text-decoration: underline;
+  text-decoration-color: transparent;
+  transition: all 0.2s ease;
+}
+
+a:hover {
+  color: var(--text-link-hover);
+  text-decoration-color: currentColor;
+}
+
+/* Button text contrast */
+button {
+  font-weight: 500;
+}
+
+/* Form element contrast */
+input, textarea, select {
+  color: var(--text-primary);
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: var(--text-muted);
+  opacity: 1;
+}
+
+/* Table text contrast */
+th {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+td {
+  color: var(--text-secondary);
+}
+
+/* List text contrast */
+li {
+  color: var(--text-secondary);
+}
+
+/* Code text contrast */
+code, pre {
+  color: var(--text-primary);
+}
+
+/* Label text contrast */
+label {
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+/* Small text contrast */
+small {
+  color: var(--text-muted);
+}
+
+/* Strong text contrast */
+strong, b {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+/* Emphasis text contrast */
+em, i {
+  color: var(--text-secondary);
+}
+
+/* Custom scrollbar for code blocks */
+.scrollbar-thin {
+  scrollbar-width: thin;
+}
+
+.scrollbar-thumb-gray-600::-webkit-scrollbar-thumb {
+  background-color: #4B5563;
+}
+
+.scrollbar-track-gray-800::-webkit-scrollbar-track {
+  background-color: #1F2937;
+}
+
+.scrollbar-thin::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
