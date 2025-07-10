@@ -12,91 +12,173 @@ import {
   AlertTriangle,
   CheckCircle,
   Clock,
-  Star
+  Star,
+  Edit,
+  Trash2,
+  Mail,
+  Phone
 } from 'lucide-react';
+import { useForm } from 'react-hook-form';
+import { yupResolver } from '@hookform/resolvers/yup';
+import * as yup from 'yup';
 import Button from '../components/UI/Button';
 import StatCard from '../components/UI/StatCard';
+import { toast } from 'react-toastify';
+
+// Team Member interface
+interface TeamMember {
+  id: string;
+  name: string;
+  email: string;
+  phone?: string;
+  role: string;
+  raciRole: 'responsible' | 'accountable' | 'consulted' | 'informed';
+  status: 'online' | 'offline' | 'away' | 'busy';
+  performance: number;
+  skills: string[];
+  availability: number;
+  joinedAt: Date;
+}
+
+// Team interface
+interface Team {
+  id: string;
+  name: string;
+  code: string;
+  members: string[]; // member IDs
+  stage: 'forming' | 'storming' | 'norming' | 'performing' | 'adjourning';
+  projects: number;
+  performance: number;
+  createdAt: Date;
+}
+
+// Form schemas
+const memberSchema = yup.object({
+  name: yup.string().required('Name is required'),
+  email: yup.string().email('Invalid email').required('Email is required'),
+  phone: yup.string(),
+  role: yup.string().required('Role is required'),
+  raciRole: yup.string().oneOf(['responsible', 'accountable', 'consulted', 'informed']).required('RACI role is required'),
+  skills: yup.string().required('Skills are required'),
+  availability: yup.number().min(0).max(100).required('Availability is required')
+});
+
+const teamSchema = yup.object({
+  name: yup.string().required('Team name is required'),
+  code: yup.string().required('Team code is required'),
+  stage: yup.string().oneOf(['forming', 'storming', 'norming', 'performing', 'adjourning']).required('Stage is required')
+});
+
+type MemberFormData = yup.InferType<typeof memberSchema>;
+type TeamFormData = yup.InferType<typeof teamSchema>;
 
 const TeamManagement: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'overview' | 'members' | 'roles' | 'performance'>('overview');
+  const [showMemberModal, setShowMemberModal] = useState(false);
+  const [showTeamModal, setShowTeamModal] = useState(false);
+  const [editingMember, setEditingMember] = useState<TeamMember | null>(null);
+  const [editingTeam, setEditingTeam] = useState<Team | null>(null);
 
-  // Mock data - in real app, this would come from hooks
-  const teams = [
+  // State for teams and members
+  const [teams, setTeams] = useState<Team[]>([
     {
       id: '1',
       name: 'Frontend Development',
       code: 'FE-001',
-      members: 5,
+      members: ['1', '3'],
       stage: 'performing',
       projects: 3,
-      performance: 92
+      performance: 92,
+      createdAt: new Date()
     },
     {
       id: '2',
       name: 'Backend Development',
       code: 'BE-001',
-      members: 4,
+      members: ['2'],
       stage: 'norming',
       projects: 2,
-      performance: 88
+      performance: 88,
+      createdAt: new Date()
     },
     {
       id: '3',
       name: 'QA Testing',
       code: 'QA-001',
-      members: 3,
+      members: ['4'],
       stage: 'storming',
       projects: 4,
-      performance: 75
+      performance: 75,
+      createdAt: new Date()
     }
-  ];
+  ]);
 
-  const teamMembers = [
+  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([
     {
       id: '1',
       name: 'John Doe',
       email: 'john@example.com',
+      phone: '+1234567890',
       role: 'Product Owner',
       raciRole: 'accountable',
       status: 'online',
       performance: 95,
       skills: ['React', 'TypeScript', 'Node.js'],
-      availability: 100
+      availability: 100,
+      joinedAt: new Date()
     },
     {
       id: '2',
       name: 'Jane Smith',
       email: 'jane@example.com',
+      phone: '+1234567891',
       role: 'Scrum Master',
       raciRole: 'responsible',
       status: 'away',
       performance: 92,
       skills: ['Agile', 'Project Management', 'Facilitation'],
-      availability: 80
+      availability: 80,
+      joinedAt: new Date()
     },
     {
       id: '3',
       name: 'Mike Johnson',
       email: 'mike@example.com',
+      phone: '+1234567892',
       role: 'Developer',
       raciRole: 'responsible',
       status: 'online',
       performance: 88,
       skills: ['React', 'Python', 'AWS'],
-      availability: 90
+      availability: 90,
+      joinedAt: new Date()
     },
     {
       id: '4',
       name: 'Sarah Wilson',
       email: 'sarah@example.com',
+      phone: '+1234567893',
       role: 'Tester',
       raciRole: 'consulted',
       status: 'busy',
       performance: 90,
       skills: ['Testing', 'Automation', 'Cypress'],
-      availability: 75
+      availability: 75,
+      joinedAt: new Date()
     }
-  ];
+  ]);
+
+  // Form hooks
+  const memberForm = useForm<MemberFormData>({
+    resolver: yupResolver(memberSchema),
+    defaultValues: {
+      availability: 100
+    }
+  });
+
+  const teamForm = useForm<TeamFormData>({
+    resolver: yupResolver(teamSchema)
+  });
 
   const tabs = [
     { id: 'overview', name: 'Team Overview', icon: Users },
@@ -136,6 +218,124 @@ const TeamManagement: React.FC = () => {
     }
   };
 
+  // CRUD operations for team members
+  const handleAddMember = async (data: MemberFormData) => {
+    try {
+      const newMember: TeamMember = {
+        id: Date.now().toString(),
+        ...data,
+        skills: data.skills.split(',').map(s => s.trim()),
+        status: 'online',
+        performance: 85,
+        joinedAt: new Date()
+      };
+      
+      setTeamMembers(prev => [...prev, newMember]);
+      setShowMemberModal(false);
+      memberForm.reset();
+      toast.success('Team member added successfully');
+    } catch (error) {
+      toast.error('Failed to add team member');
+    }
+  };
+
+  const handleUpdateMember = async (data: MemberFormData) => {
+    if (!editingMember) return;
+    
+    try {
+      const updatedMember: TeamMember = {
+        ...editingMember,
+        ...data,
+        skills: data.skills.split(',').map(s => s.trim())
+      };
+      
+      setTeamMembers(prev => prev.map(m => m.id === editingMember.id ? updatedMember : m));
+      setEditingMember(null);
+      memberForm.reset();
+      toast.success('Team member updated successfully');
+    } catch (error) {
+      toast.error('Failed to update team member');
+    }
+  };
+
+  const handleDeleteMember = (memberId: string) => {
+    if (window.confirm('Are you sure you want to remove this team member?')) {
+      setTeamMembers(prev => prev.filter(m => m.id !== memberId));
+      toast.success('Team member removed successfully');
+    }
+  };
+
+  // CRUD operations for teams
+  const handleAddTeam = async (data: TeamFormData) => {
+    try {
+      const newTeam: Team = {
+        id: Date.now().toString(),
+        ...data,
+        members: [],
+        projects: 0,
+        performance: 80,
+        createdAt: new Date()
+      };
+      
+      setTeams(prev => [...prev, newTeam]);
+      setShowTeamModal(false);
+      teamForm.reset();
+      toast.success('Team created successfully');
+    } catch (error) {
+      toast.error('Failed to create team');
+    }
+  };
+
+  const handleUpdateTeam = async (data: TeamFormData) => {
+    if (!editingTeam) return;
+    
+    try {
+      const updatedTeam: Team = {
+        ...editingTeam,
+        ...data
+      };
+      
+      setTeams(prev => prev.map(t => t.id === editingTeam.id ? updatedTeam : t));
+      setEditingTeam(null);
+      teamForm.reset();
+      toast.success('Team updated successfully');
+    } catch (error) {
+      toast.error('Failed to update team');
+    }
+  };
+
+  const handleDeleteTeam = (teamId: string) => {
+    if (window.confirm('Are you sure you want to delete this team?')) {
+      setTeams(prev => prev.filter(t => t.id !== teamId));
+      toast.success('Team deleted successfully');
+    }
+  };
+
+  // Open edit modals
+  const openEditMember = (member: TeamMember) => {
+    setEditingMember(member);
+    memberForm.reset({
+      name: member.name,
+      email: member.email,
+      phone: member.phone,
+      role: member.role,
+      raciRole: member.raciRole,
+      skills: member.skills.join(', '),
+      availability: member.availability
+    });
+    setShowMemberModal(true);
+  };
+
+  const openEditTeam = (team: Team) => {
+    setEditingTeam(team);
+    teamForm.reset({
+      name: team.name,
+      code: team.code,
+      stage: team.stage
+    });
+    setShowTeamModal(true);
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -148,13 +348,15 @@ const TeamManagement: React.FC = () => {
         </div>
         <div className="flex items-center space-x-3">
           <Button
+            onClick={() => setShowMemberModal(true)}
             icon={UserPlus}
             variant="outline"
             className="bg-surface"
           >
-            Invite Member
+            Add Member
           </Button>
           <Button
+            onClick={() => setShowTeamModal(true)}
             icon={Plus}
             className="bg-blue-600 hover:bg-blue-700 text-white"
           >
@@ -223,7 +425,16 @@ const TeamManagement: React.FC = () => {
       >
         {activeTab === 'overview' && (
           <div className="space-y-6">
-            <h2 className="text-2xl font-bold text-primary">Team Overview</h2>
+            <div className="flex items-center justify-between">
+              <h2 className="text-2xl font-bold text-primary">Team Overview</h2>
+              <Button
+                onClick={() => setShowTeamModal(true)}
+                icon={Plus}
+                className="bg-blue-600 hover:bg-blue-700 text-white"
+              >
+                Create Team
+              </Button>
+            </div>
             
             <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
               {teams.map((team, index) => (
@@ -239,15 +450,30 @@ const TeamManagement: React.FC = () => {
                       <h3 className="font-semibold text-primary">{team.name}</h3>
                       <p className="text-sm text-muted">{team.code}</p>
                     </div>
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium capitalize ${getStageColor(team.stage)}`}>
-                      {team.stage}
-                    </span>
+                    <div className="flex items-center space-x-2">
+                      <button
+                        onClick={() => openEditTeam(team)}
+                        className="p-1 text-muted hover:text-primary transition-colors"
+                      >
+                        <Edit className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => handleDeleteTeam(team.id)}
+                        className="p-1 text-muted hover:text-error transition-colors"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
                   </div>
+
+                  <span className={`px-2 py-1 rounded-full text-xs font-medium capitalize ${getStageColor(team.stage)} mb-4 inline-block`}>
+                    {team.stage}
+                  </span>
 
                   <div className="space-y-3">
                     <div className="flex items-center justify-between">
                       <span className="text-sm text-secondary">Members</span>
-                      <span className="font-medium text-primary">{team.members}</span>
+                      <span className="font-medium text-primary">{team.members.length}</span>
                     </div>
                     <div className="flex items-center justify-between">
                       <span className="text-sm text-secondary">Active Projects</span>
@@ -285,6 +511,7 @@ const TeamManagement: React.FC = () => {
             <div className="flex items-center justify-between">
               <h2 className="text-2xl font-bold text-primary">Team Members</h2>
               <Button
+                onClick={() => setShowMemberModal(true)}
                 icon={UserPlus}
                 className="bg-blue-600 hover:bg-blue-700 text-white"
               >
@@ -316,10 +543,27 @@ const TeamManagement: React.FC = () => {
                         <div>
                           <h3 className="font-semibold text-primary">{member.name}</h3>
                           <p className="text-sm text-secondary">{member.email}</p>
+                          {member.phone && (
+                            <p className="text-sm text-muted">{member.phone}</p>
+                          )}
                         </div>
-                        <div className="flex items-center space-x-1">
-                          <Star className="w-4 h-4 text-yellow-500" />
-                          <span className="text-sm font-medium text-primary">{member.performance}%</span>
+                        <div className="flex items-center space-x-2">
+                          <button
+                            onClick={() => openEditMember(member)}
+                            className="p-1 text-muted hover:text-primary transition-colors"
+                          >
+                            <Edit className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => handleDeleteMember(member.id)}
+                            className="p-1 text-muted hover:text-error transition-colors"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                          <div className="flex items-center space-x-1">
+                            <Star className="w-4 h-4 text-yellow-500" />
+                            <span className="text-sm font-medium text-primary">{member.performance}%</span>
+                          </div>
                         </div>
                       </div>
 
@@ -402,7 +646,7 @@ const TeamManagement: React.FC = () => {
                           {activity}
                         </td>
                         {teamMembers.map(member => {
-                          // Mock RACI assignment logic
+                          // Mock RACI assignment logic based on role
                           const raciRole = member.role === 'Product Owner' ? 'A' :
                                           member.role === 'Scrum Master' ? 'R' :
                                           member.role === 'Developer' ? 'R' :
@@ -566,6 +810,250 @@ const TeamManagement: React.FC = () => {
           </div>
         )}
       </motion.div>
+
+      {/* Member Modal */}
+      {showMemberModal && (
+        <div className="fixed inset-0 z-50 overflow-y-auto">
+          <div className="fixed inset-0 bg-black bg-opacity-50" onClick={() => {
+            setShowMemberModal(false);
+            setEditingMember(null);
+            memberForm.reset();
+          }} />
+          
+          <div className="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
+            <span className="hidden sm:inline-block sm:align-middle sm:h-screen">&#8203;</span>
+
+            <div className="relative z-10 inline-block align-bottom bg-surface rounded-xl text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full border border-gray-200 dark:border-gray-700">
+              <form onSubmit={memberForm.handleSubmit(editingMember ? handleUpdateMember : handleAddMember)}>
+                <div className="bg-surface px-6 pt-6">
+                  <h3 className="text-lg font-bold text-primary mb-6">
+                    {editingMember ? 'Edit Team Member' : 'Add Team Member'}
+                  </h3>
+
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-primary mb-2">Name *</label>
+                      <input
+                        {...memberForm.register('name')}
+                        type="text"
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-800 text-primary focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="Enter full name"
+                      />
+                      {memberForm.formState.errors.name && (
+                        <p className="text-error text-sm mt-1">{memberForm.formState.errors.name.message}</p>
+                      )}
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-primary mb-2">Email *</label>
+                      <input
+                        {...memberForm.register('email')}
+                        type="email"
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-800 text-primary focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="Enter email address"
+                      />
+                      {memberForm.formState.errors.email && (
+                        <p className="text-error text-sm mt-1">{memberForm.formState.errors.email.message}</p>
+                      )}
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-primary mb-2">Phone</label>
+                      <input
+                        {...memberForm.register('phone')}
+                        type="tel"
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-800 text-primary focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="Enter phone number"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-primary mb-2">Role *</label>
+                        <select
+                          {...memberForm.register('role')}
+                          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-800 text-primary focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        >
+                          <option value="">Select role</option>
+                          <option value="Product Owner">Product Owner</option>
+                          <option value="Scrum Master">Scrum Master</option>
+                          <option value="Developer">Developer</option>
+                          <option value="Tester">Tester</option>
+                          <option value="Designer">Designer</option>
+                          <option value="DevOps">DevOps</option>
+                        </select>
+                        {memberForm.formState.errors.role && (
+                          <p className="text-error text-sm mt-1">{memberForm.formState.errors.role.message}</p>
+                        )}
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-primary mb-2">RACI Role *</label>
+                        <select
+                          {...memberForm.register('raciRole')}
+                          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-800 text-primary focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        >
+                          <option value="">Select RACI</option>
+                          <option value="responsible">Responsible</option>
+                          <option value="accountable">Accountable</option>
+                          <option value="consulted">Consulted</option>
+                          <option value="informed">Informed</option>
+                        </select>
+                        {memberForm.formState.errors.raciRole && (
+                          <p className="text-error text-sm mt-1">{memberForm.formState.errors.raciRole.message}</p>
+                        )}
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-primary mb-2">Skills *</label>
+                      <input
+                        {...memberForm.register('skills')}
+                        type="text"
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-800 text-primary focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="Enter skills separated by commas"
+                      />
+                      {memberForm.formState.errors.skills && (
+                        <p className="text-error text-sm mt-1">{memberForm.formState.errors.skills.message}</p>
+                      )}
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-primary mb-2">Availability (%) *</label>
+                      <input
+                        {...memberForm.register('availability', { valueAsNumber: true })}
+                        type="number"
+                        min="0"
+                        max="100"
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-800 text-primary focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="Enter availability percentage"
+                      />
+                      {memberForm.formState.errors.availability && (
+                        <p className="text-error text-sm mt-1">{memberForm.formState.errors.availability.message}</p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-gray-50 dark:bg-gray-900 px-6 py-4 sm:flex sm:flex-row-reverse sm:space-x-reverse sm:space-x-3">
+                  <Button
+                    type="submit"
+                    className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white"
+                  >
+                    {editingMember ? 'Update Member' : 'Add Member'}
+                  </Button>
+                  
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => {
+                      setShowMemberModal(false);
+                      setEditingMember(null);
+                      memberForm.reset();
+                    }}
+                    className="mt-3 sm:mt-0 w-full sm:w-auto"
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Team Modal */}
+      {showTeamModal && (
+        <div className="fixed inset-0 z-50 overflow-y-auto">
+          <div className="fixed inset-0 bg-black bg-opacity-50" onClick={() => {
+            setShowTeamModal(false);
+            setEditingTeam(null);
+            teamForm.reset();
+          }} />
+          
+          <div className="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
+            <span className="hidden sm:inline-block sm:align-middle sm:h-screen">&#8203;</span>
+
+            <div className="relative z-10 inline-block align-bottom bg-surface rounded-xl text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full border border-gray-200 dark:border-gray-700">
+              <form onSubmit={teamForm.handleSubmit(editingTeam ? handleUpdateTeam : handleAddTeam)}>
+                <div className="bg-surface px-6 pt-6">
+                  <h3 className="text-lg font-bold text-primary mb-6">
+                    {editingTeam ? 'Edit Team' : 'Create Team'}
+                  </h3>
+
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-primary mb-2">Team Name *</label>
+                      <input
+                        {...teamForm.register('name')}
+                        type="text"
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-800 text-primary focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="Enter team name"
+                      />
+                      {teamForm.formState.errors.name && (
+                        <p className="text-error text-sm mt-1">{teamForm.formState.errors.name.message}</p>
+                      )}
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-primary mb-2">Team Code *</label>
+                      <input
+                        {...teamForm.register('code')}
+                        type="text"
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-800 text-primary focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="Enter team code (e.g., FE-001)"
+                      />
+                      {teamForm.formState.errors.code && (
+                        <p className="text-error text-sm mt-1">{teamForm.formState.errors.code.message}</p>
+                      )}
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-primary mb-2">Team Stage *</label>
+                      <select
+                        {...teamForm.register('stage')}
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-800 text-primary focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      >
+                        <option value="">Select stage</option>
+                        <option value="forming">Forming</option>
+                        <option value="storming">Storming</option>
+                        <option value="norming">Norming</option>
+                        <option value="performing">Performing</option>
+                        <option value="adjourning">Adjourning</option>
+                      </select>
+                      {teamForm.formState.errors.stage && (
+                        <p className="text-error text-sm mt-1">{teamForm.formState.errors.stage.message}</p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-gray-50 dark:bg-gray-900 px-6 py-4 sm:flex sm:flex-row-reverse sm:space-x-reverse sm:space-x-3">
+                  <Button
+                    type="submit"
+                    className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white"
+                  >
+                    {editingTeam ? 'Update Team' : 'Create Team'}
+                  </Button>
+                  
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => {
+                      setShowTeamModal(false);
+                      setEditingTeam(null);
+                      teamForm.reset();
+                    }}
+                    className="mt-3 sm:mt-0 w-full sm:w-auto"
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

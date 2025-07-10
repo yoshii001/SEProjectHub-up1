@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { 
   Plus, 
@@ -9,9 +9,10 @@ import {
   MessageSquare,
   Target,
   Clock,
-  TrendingUp
+  TrendingUp,
+  ArrowLeft
 } from 'lucide-react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { useAgileProject } from '../hooks/useAgileProject';
 import { useProjects } from '../hooks/useProjects';
 import { useClients } from '../hooks/useClients';
@@ -25,8 +26,13 @@ import { UserStory, Epic, Sprint, Task, DailyStandup, Risk } from '../types/agil
 
 const AgileBoard: React.FC = () => {
   const { projectId } = useParams<{ projectId: string }>();
+  const navigate = useNavigate();
   const { projects } = useProjects();
   const { clients } = useClients();
+  
+  // If no projectId in URL, use the first available project
+  const effectiveProjectId = projectId || (projects.length > 0 ? projects[0].id : null);
+  
   const {
     epics,
     stories,
@@ -40,7 +46,7 @@ const AgileBoard: React.FC = () => {
     updateStoryStatus,
     updateTaskStatus,
     addDailyStandup
-  } = useAgileProject(projectId!);
+  } = useAgileProject(effectiveProjectId || '');
 
   const [activeTab, setActiveTab] = useState<'board' | 'backlog' | 'sprints' | 'risks' | 'reports'>('board');
   const [showStoryModal, setShowStoryModal] = useState(false);
@@ -49,7 +55,7 @@ const AgileBoard: React.FC = () => {
   const [editingStory, setEditingStory] = useState<UserStory | null>(null);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
 
-  const project = projects.find(p => p.id === projectId);
+  const project = projects.find(p => p.id === effectiveProjectId);
   const client = project ? clients.find(c => c.id === project.clientId) : null;
   const activeSprint = sprints.find(s => s.status === 'active');
 
@@ -91,6 +97,65 @@ const AgileBoard: React.FC = () => {
     setShowStandupModal(false);
   };
 
+  // Show project selection if no projects available
+  if (!loading && projects.length === 0) {
+    return (
+      <div className="text-center py-12">
+        <Target className="w-16 h-16 text-muted mx-auto mb-4" />
+        <h2 className="text-xl font-semibold text-primary mb-2">No Projects Available</h2>
+        <p className="text-secondary mb-6">Create a project first to use the Agile Board.</p>
+        <Button
+          onClick={() => navigate('/projects')}
+          icon={Plus}
+          className="bg-blue-600 hover:bg-blue-700 text-white"
+        >
+          Create Project
+        </Button>
+      </div>
+    );
+  }
+
+  // Show project selector if multiple projects and no specific project selected
+  if (!loading && !projectId && projects.length > 1) {
+    return (
+      <div className="space-y-6">
+        <div className="text-center py-12">
+          <Target className="w-16 h-16 text-muted mx-auto mb-4" />
+          <h2 className="text-xl font-semibold text-primary mb-2">Select a Project</h2>
+          <p className="text-secondary mb-6">Choose a project to manage with Agile methodology.</p>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 max-w-4xl mx-auto">
+            {projects.map((proj) => {
+              const projClient = clients.find(c => c.id === proj.clientId);
+              return (
+                <motion.div
+                  key={proj.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="bg-surface p-6 rounded-lg border border-gray-200 dark:border-gray-700 hover:shadow-lg transition-shadow cursor-pointer"
+                  onClick={() => navigate(`/agile/${proj.id}`)}
+                >
+                  <h3 className="font-semibold text-primary mb-2">{proj.title}</h3>
+                  <p className="text-sm text-secondary mb-3">{projClient?.name || 'Unknown Client'}</p>
+                  <div className="flex items-center justify-between text-xs text-muted">
+                    <span className={`px-2 py-1 rounded-full ${
+                      proj.status === 'in-progress' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200' :
+                      proj.status === 'completed' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' :
+                      'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200'
+                    }`}>
+                      {proj.status}
+                    </span>
+                    <span>{proj.progress}%</span>
+                  </div>
+                </motion.div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -102,8 +167,25 @@ const AgileBoard: React.FC = () => {
   if (!project) {
     return (
       <div className="text-center py-12">
-        <h2 className="text-xl font-semibold text-primary">Project not found</h2>
-        <p className="text-secondary mt-2">The requested project could not be found.</p>
+        <AlertTriangle className="w-16 h-16 text-error mx-auto mb-4" />
+        <h2 className="text-xl font-semibold text-primary mb-2">Project not found</h2>
+        <p className="text-secondary mb-6">The requested project could not be found or you don't have access to it.</p>
+        <div className="space-x-4">
+          <Button
+            onClick={() => navigate('/agile')}
+            variant="outline"
+            icon={ArrowLeft}
+          >
+            Back to Project Selection
+          </Button>
+          <Button
+            onClick={() => navigate('/projects')}
+            icon={Plus}
+            className="bg-blue-600 hover:bg-blue-700 text-white"
+          >
+            Create New Project
+          </Button>
+        </div>
       </div>
     );
   }
@@ -112,11 +194,23 @@ const AgileBoard: React.FC = () => {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-primary">{project.title}</h1>
-          <p className="text-secondary mt-2">
-            Agile Project Management • {client?.name || 'Unknown Client'}
-          </p>
+        <div className="flex items-center space-x-4">
+          {projectId && (
+            <Button
+              onClick={() => navigate('/agile')}
+              variant="outline"
+              icon={ArrowLeft}
+              size="sm"
+            >
+              Back
+            </Button>
+          )}
+          <div>
+            <h1 className="text-3xl font-bold text-primary">{project.title}</h1>
+            <p className="text-secondary mt-2">
+              Agile Project Management • {client?.name || 'Unknown Client'}
+            </p>
+          </div>
         </div>
         <div className="flex items-center space-x-3">
           <Button
@@ -221,41 +315,56 @@ const AgileBoard: React.FC = () => {
               </Button>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {stories
-                .filter(story => story.status === 'backlog')
-                .map((story, index) => (
-                  <motion.div
-                    key={story.id}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: index * 0.1 }}
-                    className="bg-surface p-6 rounded-lg border border-gray-200 dark:border-gray-700 hover:shadow-lg transition-shadow cursor-pointer"
-                    onClick={() => setEditingStory(story)}
-                  >
-                    <div className="flex items-start justify-between mb-4">
-                      <h3 className="font-semibold text-primary">{story.title}</h3>
-                      <span className="text-sm font-medium text-muted bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded">
-                        {story.storyPoints} pts
-                      </span>
-                    </div>
-                    <p className="text-sm text-secondary mb-4">
-                      As a <strong>{story.asA}</strong>, I want <strong>{story.iWant}</strong> so that <strong>{story.soThat}</strong>.
-                    </p>
-                    <div className="flex items-center justify-between text-xs text-muted">
-                      <span className={`px-2 py-1 rounded-full ${
-                        story.priority === 'critical' ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200' :
-                        story.priority === 'high' ? 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200' :
-                        story.priority === 'medium' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200' :
-                        'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-                      }`}>
-                        {story.priority} priority
-                      </span>
-                      <span>{story.acceptanceCriteria.length} criteria</span>
-                    </div>
-                  </motion.div>
-                ))}
-            </div>
+            {stories.length === 0 ? (
+              <div className="text-center py-12">
+                <Target className="w-16 h-16 text-muted mx-auto mb-4" />
+                <h3 className="text-lg font-medium text-primary mb-2">No User Stories</h3>
+                <p className="text-secondary mb-6">Create your first user story to get started with agile development.</p>
+                <Button
+                  onClick={() => setShowStoryModal(true)}
+                  icon={Plus}
+                  className="bg-blue-600 hover:bg-blue-700 text-white"
+                >
+                  Create First Story
+                </Button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {stories
+                  .filter(story => story.status === 'backlog')
+                  .map((story, index) => (
+                    <motion.div
+                      key={story.id}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: index * 0.1 }}
+                      className="bg-surface p-6 rounded-lg border border-gray-200 dark:border-gray-700 hover:shadow-lg transition-shadow cursor-pointer"
+                      onClick={() => setEditingStory(story)}
+                    >
+                      <div className="flex items-start justify-between mb-4">
+                        <h3 className="font-semibold text-primary">{story.title}</h3>
+                        <span className="text-sm font-medium text-muted bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded">
+                          {story.storyPoints} pts
+                        </span>
+                      </div>
+                      <p className="text-sm text-secondary mb-4">
+                        As a <strong>{story.asA}</strong>, I want <strong>{story.iWant}</strong> so that <strong>{story.soThat}</strong>.
+                      </p>
+                      <div className="flex items-center justify-between text-xs text-muted">
+                        <span className={`px-2 py-1 rounded-full ${
+                          story.priority === 'critical' ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200' :
+                          story.priority === 'high' ? 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200' :
+                          story.priority === 'medium' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200' :
+                          'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+                        }`}>
+                          {story.priority} priority
+                        </span>
+                        <span>{story.acceptanceCriteria.length} criteria</span>
+                      </div>
+                    </motion.div>
+                  ))}
+              </div>
+            )}
           </div>
         )}
 
@@ -271,10 +380,24 @@ const AgileBoard: React.FC = () => {
               </Button>
             </div>
 
-            <RiskMatrix
-              risks={risks}
-              onRiskClick={(risk) => console.log('Risk clicked:', risk)}
-            />
+            {risks.length === 0 ? (
+              <div className="text-center py-12">
+                <AlertTriangle className="w-16 h-16 text-muted mx-auto mb-4" />
+                <h3 className="text-lg font-medium text-primary mb-2">No Risks Identified</h3>
+                <p className="text-secondary mb-6">Start identifying and managing project risks to ensure successful delivery.</p>
+                <Button
+                  icon={Plus}
+                  className="bg-red-600 hover:bg-red-700 text-white"
+                >
+                  Add First Risk
+                </Button>
+              </div>
+            ) : (
+              <RiskMatrix
+                risks={risks}
+                onRiskClick={(risk) => console.log('Risk clicked:', risk)}
+              />
+            )}
           </div>
         )}
 
@@ -290,52 +413,66 @@ const AgileBoard: React.FC = () => {
               </Button>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {sprints.map((sprint, index) => (
-                <motion.div
-                  key={sprint.id}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: index * 0.1 }}
-                  className="bg-surface p-6 rounded-lg border border-gray-200 dark:border-gray-700"
+            {sprints.length === 0 ? (
+              <div className="text-center py-12">
+                <Calendar className="w-16 h-16 text-muted mx-auto mb-4" />
+                <h3 className="text-lg font-medium text-primary mb-2">No Sprints Created</h3>
+                <p className="text-secondary mb-6">Create your first sprint to start organizing your work into time-boxed iterations.</p>
+                <Button
+                  icon={Plus}
+                  className="bg-purple-600 hover:bg-purple-700 text-white"
                 >
-                  <div className="flex items-start justify-between mb-4">
-                    <h3 className="font-semibold text-primary">{sprint.name}</h3>
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                      sprint.status === 'active' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' :
-                      sprint.status === 'planning' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200' :
-                      sprint.status === 'completed' ? 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200' :
-                      'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
-                    }`}>
-                      {sprint.status}
-                    </span>
-                  </div>
-                  <p className="text-sm text-secondary mb-4">{sprint.goal}</p>
-                  <div className="grid grid-cols-2 gap-4 text-sm">
-                    <div>
-                      <span className="text-muted">Start:</span>
-                      <p className="font-medium text-primary">
-                        {new Date(sprint.startDate).toLocaleDateString()}
-                      </p>
+                  Create First Sprint
+                </Button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {sprints.map((sprint, index) => (
+                  <motion.div
+                    key={sprint.id}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: index * 0.1 }}
+                    className="bg-surface p-6 rounded-lg border border-gray-200 dark:border-gray-700"
+                  >
+                    <div className="flex items-start justify-between mb-4">
+                      <h3 className="font-semibold text-primary">{sprint.name}</h3>
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                        sprint.status === 'active' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' :
+                        sprint.status === 'planning' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200' :
+                        sprint.status === 'completed' ? 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200' :
+                        'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
+                      }`}>
+                        {sprint.status}
+                      </span>
                     </div>
-                    <div>
-                      <span className="text-muted">End:</span>
-                      <p className="font-medium text-primary">
-                        {new Date(sprint.endDate).toLocaleDateString()}
-                      </p>
+                    <p className="text-sm text-secondary mb-4">{sprint.goal}</p>
+                    <div className="grid grid-cols-2 gap-4 text-sm">
+                      <div>
+                        <span className="text-muted">Start:</span>
+                        <p className="font-medium text-primary">
+                          {new Date(sprint.startDate).toLocaleDateString()}
+                        </p>
+                      </div>
+                      <div>
+                        <span className="text-muted">End:</span>
+                        <p className="font-medium text-primary">
+                          {new Date(sprint.endDate).toLocaleDateString()}
+                        </p>
+                      </div>
+                      <div>
+                        <span className="text-muted">Capacity:</span>
+                        <p className="font-medium text-primary">{sprint.capacity} pts</p>
+                      </div>
+                      <div>
+                        <span className="text-muted">Velocity:</span>
+                        <p className="font-medium text-primary">{sprint.velocity} pts</p>
+                      </div>
                     </div>
-                    <div>
-                      <span className="text-muted">Capacity:</span>
-                      <p className="font-medium text-primary">{sprint.capacity} pts</p>
-                    </div>
-                    <div>
-                      <span className="text-muted">Velocity:</span>
-                      <p className="font-medium text-primary">{sprint.velocity} pts</p>
-                    </div>
-                  </div>
-                </motion.div>
-              ))}
-            </div>
+                  </motion.div>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
@@ -409,14 +546,14 @@ const AgileBoard: React.FC = () => {
         onSubmit={handleCreateStory}
         story={editingStory || undefined}
         epics={epics}
-        projectId={projectId!}
+        projectId={effectiveProjectId!}
       />
 
       <DailyStandupModal
         isOpen={showStandupModal}
         onClose={() => setShowStandupModal(false)}
         onSubmit={handleStandup}
-        userId="current-user-id" // Replace with actual user ID
+        userId="current-user-id"
         sprintId={activeSprint?.id || ''}
       />
     </div>
